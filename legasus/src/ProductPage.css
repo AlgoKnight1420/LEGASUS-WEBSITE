@@ -303,8 +303,14 @@
 .pdp-brand-button--mobile {
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .pdp-brand {
@@ -1306,7 +1312,7 @@
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    min-height: 2.56rem;
+    min-height: 2.68rem;
     padding: 0.02rem 0.34rem 0;
     border-bottom: 1px solid rgba(31, 42, 63, 0.16);
     box-shadow: 0 1px 0 rgba(31, 42, 63, 0.05);
@@ -1318,6 +1324,17 @@
     justify-self: end;
     display: flex;
     gap: 0.04rem;
+  }
+
+  .site-header__mobile.pdp-header-mobile .pdp-brand-button--mobile {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .pdp-header-mobile .pdp-icon-button {
@@ -1351,6 +1368,7 @@
     font-size: 1.1rem;
     letter-spacing: 0.015em;
     line-height: 0.92;
+    transform: translateY(-2px);
   }
 
   .pdp-nav--mobile {
@@ -1465,6 +1483,7 @@
 @media (max-width: 520px) {
   .pdp-header-mobile .pdp-brand strong {
     font-size: 1rem;
+    transform: translateY(-2px);
   }
 
   .pdp-header-mobile .pdp-icon-button {
