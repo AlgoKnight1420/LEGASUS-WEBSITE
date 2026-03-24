@@ -729,13 +729,32 @@ const registerUser = async (payload) =>
     }
   })
 
+const findStoredUserByEmail = (users, email) => {
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+  return users.find((user) => user.email === normalizedEmail) ?? null
+}
+
 const loginUser = async (email, password) => {
   const data = await readAll()
-  const normalizedEmail = String(email ?? '').trim().toLowerCase()
-  const matchedUser = data.users.find((user) => user.email === normalizedEmail)
+  const matchedUser = findStoredUserByEmail(data.users, email)
 
   if (!matchedUser || !verifyPassword(password ?? '', matchedUser.passwordHash)) {
     throw new Error('Invalid email or password.')
+  }
+
+  return sanitizeUser(matchedUser)
+}
+
+const loginUserWithOtp = async (email) => {
+  const data = await readAll()
+  const matchedUser = findStoredUserByEmail(data.users, email)
+
+  if (!matchedUser) {
+    throw new Error('No customer account found for this email.')
+  }
+
+  if (matchedUser.role !== 'customer') {
+    throw new Error('OTP login is available only for customer accounts. Please use password login.')
   }
 
   return sanitizeUser(matchedUser)
@@ -1362,6 +1381,7 @@ export {
   getOrderById,
   getStockStatus,
   loginUser,
+  loginUserWithOtp,
   placeCheckoutOrders,
   quoteCheckoutPricing,
   refreshOrderTracking,

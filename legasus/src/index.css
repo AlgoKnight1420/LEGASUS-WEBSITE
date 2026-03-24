@@ -25,12 +25,18 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   background: var(--surface);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 button,
@@ -49,4 +55,7 @@ img {
 
 #root {
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }

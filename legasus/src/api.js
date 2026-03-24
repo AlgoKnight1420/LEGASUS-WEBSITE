@@ -36,6 +36,18 @@ const loginWithPassword = (payload) =>
     body: JSON.stringify(payload),
   })
 
+const requestLoginOtp = (payload) =>
+  request('/auth/login/request-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+const verifyLoginOtp = (payload) =>
+  request('/auth/login/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
 const updateCustomer = (userId, payload) =>
   request(`/users/${userId}`, {
     method: 'PATCH',
@@ -116,6 +128,7 @@ export {
   getOrderTracking,
   loginWithPassword,
   placeCheckoutOrder,
+  requestLoginOtp,
   replaceAdminDepartmentBanners,
   registerCustomer,
   removeCustomer,
@@ -123,5 +136,6 @@ export {
   updateAdminProduct,
   updateAdminProductStock,
   updateCustomer,
+  verifyLoginOtp,
   verifyRazorpayPayment,
 }

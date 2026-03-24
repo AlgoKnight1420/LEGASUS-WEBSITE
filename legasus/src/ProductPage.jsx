@@ -1200,11 +1200,13 @@ function ProductPage({
           </div>
 
           <div className="pdp-footer__socials">
-            <span>Follow Us:</span>
-            <button type="button" aria-label="Facebook"><FacebookIcon /></button>
-            <button type="button" aria-label="Instagram"><InstagramIcon /></button>
-            <button type="button" aria-label="WhatsApp"><WhatsAppIcon /></button>
-            <button type="button" aria-label="X"><TwitterIcon /></button>
+            <span>Follow Us.</span>
+            <div className="pdp-footer__social-icons">
+              <button type="button" aria-label="Facebook"><FacebookIcon /></button>
+              <button type="button" aria-label="Instagram"><InstagramIcon /></button>
+              <button type="button" aria-label="WhatsApp"><WhatsAppIcon /></button>
+              <button type="button" aria-label="X"><TwitterIcon /></button>
+            </div>
           </div>
         </div>
       </footer>

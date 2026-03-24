@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
 import { fileURLToPath } from 'node:url'
+import { requestLoginOtp, verifyLoginOtp } from './lib/authOtp.js'
 import {
   MAX_HOME_BANNERS,
   MAX_PRODUCT_IMAGES,
@@ -16,6 +17,7 @@ import {
   getBootstrapPayload,
   getOrderById,
   loginUser,
+  loginUserWithOtp,
   placeCheckoutOrders,
   quoteCheckoutPricing,
   refreshOrderTracking,
@@ -132,6 +134,45 @@ app.post('/api/auth/login', async (request, response) => {
     response.json({ user })
   } catch (error) {
     sendError(response, error, 401)
+  }
+})
+
+app.post('/api/auth/login/request-otp', async (request, response) => {
+  try {
+    const { email, password } = request.body ?? {}
+
+    if (!String(email ?? '').trim() || !String(password ?? '').trim()) {
+      return sendError(response, 'Please enter your email and password.')
+    }
+
+    const user = await loginUser(email, password)
+
+    if (user.role !== 'customer') {
+      return sendError(response, 'OTP login is only required for customer accounts. Please continue with password login.')
+    }
+
+    const payload = await requestLoginOtp({ email, user })
+    response.json(payload)
+  } catch (error) {
+    const statusCode = error instanceof Error && Number.isInteger(error.statusCode) ? error.statusCode : 401
+    sendError(response, error, statusCode)
+  }
+})
+
+app.post('/api/auth/login/verify-otp', async (request, response) => {
+  try {
+    const { email, otp } = request.body ?? {}
+
+    if (!String(email ?? '').trim() || !String(otp ?? '').trim()) {
+      return sendError(response, 'Please enter your email and OTP.')
+    }
+
+    await verifyLoginOtp({ email, otp })
+    const user = await loginUserWithOtp(email)
+    response.json({ user })
+  } catch (error) {
+    const statusCode = error instanceof Error && Number.isInteger(error.statusCode) ? error.statusCode : 401
+    sendError(response, error, statusCode)
   }
 })
 

@@ -12,6 +12,7 @@ import {
   getOrderTracking,
   loginWithPassword,
   placeCheckoutOrder,
+  requestLoginOtp as requestLoginOtpApi,
   replaceAdminDepartmentBanners,
   registerCustomer,
   removeCustomer,
@@ -19,6 +20,7 @@ import {
   updateAdminProduct as updateAdminProductApi,
   updateAdminProductStock as updateAdminProductStockApi,
   updateCustomer,
+  verifyLoginOtp as verifyLoginOtpApi,
   verifyRazorpayPayment,
 } from './api'
 import { calculateCheckoutPricing } from '../shared/checkoutPricing.js'
@@ -731,6 +733,15 @@ const initialAddressForm = {
 const initialLoginForm = {
   email: '',
   password: '',
+  otp: '',
+}
+
+const initialLoginOtpState = {
+  requestedEmail: '',
+  maskedEmail: '',
+  expiresInSeconds: 0,
+  resendAvailableInSeconds: 0,
+  previewCode: '',
 }
 
 const initialRegisterForm = {
@@ -2229,7 +2240,7 @@ function SiteFooter() {
           </div>
 
           <div className="social-row">
-            <span>Follow Us:</span>
+            <span>Follow Us.</span>
             <div className="social-row__icons">
               <a href="#0" aria-label="Follow us on Facebook">
                 <FooterFacebookIcon />
@@ -2295,7 +2306,7 @@ function SiteFooter() {
             </div>
 
             <div className="social-row social-row--mobile">
-              <span>Follow Us:</span>
+              <span>Follow Us.</span>
               <div className="social-row__icons">
                 <a href="#0" aria-label="Follow us on Facebook">
                   <FooterFacebookIcon />
@@ -4356,6 +4367,7 @@ function App() {
   const [authError, setAuthError] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [loginOtpState, setLoginOtpState] = useState(initialLoginOtpState)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [activeCustomerSection, setActiveCustomerSection] = useState('orders')
@@ -4404,6 +4416,9 @@ function App() {
   const visibleFeaturedPage = featuredPages[drawerPage] ?? featuredPages[0] ?? []
   const searchValue = searchQuery.trim().toLowerCase()
   const isBackendReady = backendMode === 'ready'
+  const normalizedLoginEmail = loginForm.email.trim().toLowerCase()
+  const isOtpRequestedForCurrentEmail = Boolean(loginOtpState.requestedEmail) && loginOtpState.requestedEmail === normalizedLoginEmail
+  const isOtpStepVisible = isOtpRequestedForCurrentEmail && isBackendReady && normalizedLoginEmail !== DEFAULT_ADMIN_EMAIL
   const adminProductMap = new Map(adminProducts.map((product) => [product.id, product]))
   const storefrontProducts = productCatalog.map((product) => {
     const override = adminProductMap.get(product.id)
@@ -4999,10 +5014,47 @@ function App() {
     setAuthMessage('')
   }
 
+  const resetLoginOtpState = () => {
+    setLoginOtpState(initialLoginOtpState)
+  }
+
+  const resetLoginUi = () => {
+    setLoginForm(initialLoginForm)
+    setShowLoginPassword(false)
+    resetLoginOtpState()
+  }
+
+  const returnToLoginCredentials = () => {
+    clearAuthFeedback()
+    resetLoginOtpState()
+    setLoginForm((current) => ({ ...current, otp: '' }))
+  }
+
+  const completeLogin = (user) => {
+    const normalizedUser = normalizeStoredUser(user)
+
+    setCurrentUser(normalizedUser)
+    resetLoginUi()
+    setAuthMessage('')
+    setAuthError('')
+
+    if (normalizedUser.role === 'admin') {
+      openAdminDashboard()
+      return
+    }
+
+    setActiveView(authReturnView && authReturnView !== 'auth' ? authReturnView : 'home')
+  }
+
   const openAuthPage = (mode = 'login', returnView = activeView === 'auth' ? authReturnView : activeView) => {
     setAuthMode(mode)
     setAuthReturnView(returnView === 'auth' || returnView === 'admin' ? 'home' : returnView)
     clearAuthFeedback()
+    if (mode === 'login') {
+      setShowLoginPassword(false)
+      resetLoginOtpState()
+      setLoginForm((current) => ({ ...current, password: '', otp: '' }))
+    }
     setActiveView('auth')
     setIsMenuOpen(false)
   }
@@ -5068,6 +5120,24 @@ function App() {
   }
 
   const updateLoginField = (field, value) => {
+    if (field === 'email' || field === 'password') {
+      const normalizedEmail = String(value ?? '').trim().toLowerCase()
+
+      if (
+        loginOtpState.requestedEmail &&
+        (field === 'password' || loginOtpState.requestedEmail !== normalizedEmail)
+      ) {
+        resetLoginOtpState()
+        clearAuthFeedback()
+        setLoginForm((current) => ({
+          ...current,
+          [field]: value,
+          otp: '',
+        }))
+        return
+      }
+    }
+
     setLoginForm((current) => ({ ...current, [field]: value }))
   }
 
@@ -5082,6 +5152,12 @@ function App() {
   const switchAuthMode = (mode) => {
     setAuthMode(mode)
     clearAuthFeedback()
+
+    if (mode === 'login') {
+      setShowLoginPassword(false)
+      resetLoginOtpState()
+      setLoginForm((current) => ({ ...current, password: '', otp: '' }))
+    }
   }
 
   const updateProductFormField = (field, value) => {
@@ -5776,39 +5852,120 @@ function App() {
     }
 
     setRegisterForm(initialRegisterForm)
-    setLoginForm({ email: normalizedEmail, password: '' })
+    setLoginForm({ email: normalizedEmail, password: '', otp: '' })
     setShowRegisterPassword(false)
     setShowConfirmPassword(false)
+    resetLoginOtpState()
     setAuthMode('login')
     setAuthMessage('Account created. Login with your email and password.')
+  }
+
+  const handleRequestEmailOtp = async () => {
+    clearAuthFeedback()
+
+    if (!normalizedLoginEmail) {
+      setAuthError('Please enter your email address.')
+      return
+    }
+
+    if (!isBackendReady) {
+      setAuthError('Email OTP login is available only when the backend is connected.')
+      return
+    }
+
+    try {
+      const payload = await requestLoginOtpApi({
+        email: normalizedLoginEmail,
+        password: loginForm.password,
+      })
+
+      setLoginOtpState({
+        requestedEmail: normalizedLoginEmail,
+        maskedEmail: payload.maskedEmail ?? normalizedLoginEmail,
+        expiresInSeconds: Number(payload.expiresInSeconds ?? 0),
+        resendAvailableInSeconds: Number(payload.resendAvailableInSeconds ?? 0),
+        previewCode: String(payload.previewCode ?? ''),
+      })
+      setLoginForm((current) => ({ ...current, email: normalizedLoginEmail, otp: '' }))
+      setAuthMessage(
+        payload.previewCode
+          ? `Password verified. OTP sent to ${payload.maskedEmail ?? normalizedLoginEmail}. Demo code: ${payload.previewCode}`
+          : `Password verified. OTP sent to ${payload.maskedEmail ?? normalizedLoginEmail}. Please check your inbox.`,
+      )
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'We could not send the OTP right now.')
+    }
+  }
+
+  const handleVerifyEmailOtp = async () => {
+    clearAuthFeedback()
+
+    if (!normalizedLoginEmail || !loginForm.otp.trim()) {
+      setAuthError('Please enter your email and OTP.')
+      return
+    }
+
+    if (!isBackendReady) {
+      setAuthError('Email OTP login is available only when the backend is connected.')
+      return
+    }
+
+    if (!isOtpRequestedForCurrentEmail) {
+      setAuthError('Please request a new OTP for this email first.')
+      return
+    }
+
+    try {
+      const { user } = await verifyLoginOtpApi({
+        email: normalizedLoginEmail,
+        otp: loginForm.otp.trim(),
+      })
+
+      completeLogin(user)
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'OTP verification failed.')
+    }
+  }
+
+  const handleOtpStepSubmit = async (event) => {
+    event.preventDefault()
+    await handleVerifyEmailOtp()
   }
 
   const handleLogin = async (event) => {
     event.preventDefault()
     clearAuthFeedback()
 
-    const normalizedEmail = loginForm.email.trim().toLowerCase()
-
-    if (!normalizedEmail || !loginForm.password) {
+    if (!normalizedLoginEmail || !loginForm.password) {
       setAuthError('Please enter your email and password.')
       return
     }
 
     if (isBackendReady) {
-      try {
-        const { user } = await loginWithPassword({
-          email: normalizedEmail,
-          password: loginForm.password,
-        })
+      if (normalizedLoginEmail === DEFAULT_ADMIN_EMAIL) {
+        try {
+          const { user } = await loginWithPassword({
+            email: normalizedLoginEmail,
+            password: loginForm.password,
+          })
 
-        setCurrentUser(normalizeStoredUser(user))
+          completeLogin(user)
+        } catch (error) {
+          setAuthError(error instanceof Error ? error.message : 'Invalid email or password.')
+        }
+        return
+      }
+
+      try {
+        await handleRequestEmailOtp()
+        return
       } catch (error) {
-        setAuthError(error instanceof Error ? error.message : 'Invalid email or password.')
+        setAuthError(error instanceof Error ? error.message : 'We could not start OTP login.')
         return
       }
     } else {
-      if (normalizedEmail === DEFAULT_ADMIN_EMAIL && loginForm.password === DEFAULT_ADMIN_PASSWORD) {
-        setCurrentUser({
+      if (normalizedLoginEmail === DEFAULT_ADMIN_EMAIL && loginForm.password === DEFAULT_ADMIN_PASSWORD) {
+        completeLogin({
           id: 'admin-legasus',
           firstName: 'Admin',
           lastName: 'Legasus',
@@ -5819,22 +5976,17 @@ function App() {
           role: 'admin',
           addresses: [],
         })
-        setLoginForm(initialLoginForm)
-        setShowLoginPassword(false)
-        setAuthMessage('')
-        setAuthError('')
-        openAdminDashboard()
         return
       }
 
-      const matchedUser = registeredUsers.find((user) => user.email === normalizedEmail && user.password === loginForm.password)
+      const matchedUser = registeredUsers.find((user) => user.email === normalizedLoginEmail && user.password === loginForm.password)
 
       if (!matchedUser) {
         setAuthError('Invalid email or password.')
         return
       }
 
-      setCurrentUser({
+      completeLogin({
         id: matchedUser.id,
         firstName: matchedUser.firstName,
         lastName: matchedUser.lastName,
@@ -5845,25 +5997,8 @@ function App() {
         role: matchedUser.role ?? 'customer',
         addresses: matchedUser.addresses ?? [],
       })
-    }
-
-    setLoginForm(initialLoginForm)
-    setShowLoginPassword(false)
-    setAuthMessage('')
-    setAuthError('')
-    const nextRole =
-      normalizedEmail === DEFAULT_ADMIN_EMAIL && loginForm.password === DEFAULT_ADMIN_PASSWORD
-        ? 'admin'
-        : (isBackendReady
-            ? (normalizedEmail === DEFAULT_ADMIN_EMAIL ? 'admin' : 'customer')
-            : (registeredUsers.find((user) => user.email === normalizedEmail)?.role ?? 'customer'))
-
-    if (nextRole === 'admin') {
-      openAdminDashboard()
       return
     }
-
-    setActiveView(authReturnView && authReturnView !== 'auth' ? authReturnView : 'home')
   }
 
   const handleLogout = () => {
@@ -7002,7 +7137,11 @@ function App() {
                 ) : (
                   <>
                     <div className="auth-card__intro">
-                      <h1>{authMode === 'login' ? 'Login with Legasus Store' : 'Register with Legasus Store'}</h1>
+                      <h1>
+                        {authMode === 'login'
+                          ? (isOtpStepVisible ? 'Verify Login OTP' : 'Login with Legasus Store')
+                          : 'Register with Legasus Store'}
+                      </h1>
                     </div>
 
                     <div className="auth-card__tabs">
@@ -7015,7 +7154,7 @@ function App() {
                     </div>
 
                     <div className={`auth-panel auth-panel--${authMode}`}>
-                      {authMode === 'login' ? (
+                      {authMode === 'login' && !isOtpStepVisible ? (
                         <>
                           <div className="auth-social">
                             <button type="button" disabled>Facebook</button>
@@ -7031,33 +7170,76 @@ function App() {
                       {authMessage ? <p className="auth-feedback auth-feedback--success">{authMessage}</p> : null}
 
                       {authMode === 'login' ? (
-                        <form className="auth-form" onSubmit={handleLogin}>
-                          <label>
-                            <span>Email ID</span>
-                            <input type="email" placeholder="Enter Email ID" value={loginForm.email} onChange={(event) => updateLoginField('email', event.target.value)} />
-                          </label>
+                        isOtpStepVisible ? (
+                          <form className="auth-form" onSubmit={handleOtpStepSubmit}>
+                            <p className="auth-form__hint">
+                              OTP sent to {loginOtpState.maskedEmail || normalizedLoginEmail}. Enter the 6-digit code to complete login.
+                            </p>
 
-                          <label>
-                            <span>Password</span>
-                            <div className="auth-form__password">
-                              <input type={showLoginPassword ? 'text' : 'password'} placeholder="Enter Password" value={loginForm.password} onChange={(event) => updateLoginField('password', event.target.value)} />
-                              <button type="button" onClick={() => setShowLoginPassword((current) => !current)}>
-                                {showLoginPassword ? 'Hide' : 'Show'}
+                            <label>
+                              <span>OTP</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                maxLength={6}
+                                placeholder="Enter 6-digit OTP"
+                                value={loginForm.otp}
+                                onChange={(event) => updateLoginField('otp', event.target.value.replace(/\D/g, '').slice(0, 6))}
+                              />
+                            </label>
+
+                            <div className="auth-form__actions">
+                              <button className="auth-form__submit" type="submit">
+                                Proceed
+                              </button>
+                              <button className="auth-form__secondary" type="button" onClick={handleRequestEmailOtp}>
+                                Resend OTP
+                              </button>
+                              <button className="auth-form__secondary" type="button" onClick={returnToLoginCredentials}>
+                                Back to Login
                               </button>
                             </div>
-                          </label>
+                          </form>
+                        ) : (
+                          <form className="auth-form" onSubmit={handleLogin}>
+                            <label>
+                              <span>Email ID</span>
+                              <input type="email" placeholder="Enter Email ID" value={loginForm.email} onChange={(event) => updateLoginField('email', event.target.value)} />
+                            </label>
 
-                          <button className="auth-form__submit" type="submit">
-                            Proceed
-                          </button>
+                            <label>
+                              <span>Password</span>
+                              <div className="auth-form__password">
+                                <input type={showLoginPassword ? 'text' : 'password'} placeholder="Enter Password" value={loginForm.password} onChange={(event) => updateLoginField('password', event.target.value)} />
+                                <button type="button" onClick={() => setShowLoginPassword((current) => !current)}>
+                                  {showLoginPassword ? 'Hide' : 'Show'}
+                                </button>
+                              </div>
+                            </label>
 
-                          <p className="auth-form__switch">
-                            New User?{' '}
-                            <button type="button" onClick={() => switchAuthMode('register')}>
-                              Create Account
-                            </button>
-                          </p>
-                        </form>
+                            <p className="auth-form__hint">
+                              {!isBackendReady
+                                ? 'Login will use password directly until the backend is connected.'
+                                : (normalizedLoginEmail === DEFAULT_ADMIN_EMAIL
+                                    ? 'Admin login continues with email and password only.'
+                                    : 'After you press login, we will verify the password and open the OTP verification step.')}
+                            </p>
+
+                            <div className="auth-form__actions">
+                              <button className="auth-form__submit" type="submit">
+                                {isBackendReady && normalizedLoginEmail !== DEFAULT_ADMIN_EMAIL ? 'Login' : 'Proceed'}
+                              </button>
+                            </div>
+
+                            <p className="auth-form__switch">
+                              New User?{' '}
+                              <button type="button" onClick={() => switchAuthMode('register')}>
+                                Create Account
+                              </button>
+                            </p>
+                          </form>
+                        )
                       ) : (
                         <form className="auth-form auth-form--register" onSubmit={handleRegister}>
                           <div className="auth-form__split">
