@@ -1134,6 +1134,72 @@
   gap: 0.6rem;
 }
 
+.pdp-footer .social-row__icons {
+  display: flex !important;
+  align-items: center;
+  gap: 0.72rem;
+  flex-direction: row !important;
+  flex-wrap: nowrap;
+}
+
+.pdp-footer .social-row a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.15rem;
+  height: 3.15rem;
+  margin: 0;
+  border-radius: 50%;
+  border: 0;
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(25, 31, 42, 0.12);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+  flex: 0 0 auto;
+}
+
+.pdp-footer .social-row a:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 22px rgba(25, 31, 42, 0.16);
+}
+
+.pdp-footer .social-row a:nth-of-type(1) {
+  background: #5074ba;
+}
+
+.pdp-footer .social-row a:nth-of-type(2) {
+  background: linear-gradient(135deg, #7b3fc7 0%, #d63c8f 55%, #f59d2a 100%);
+}
+
+.pdp-footer .social-row a:nth-of-type(3) {
+  background: #f8b325;
+}
+
+.pdp-footer .social-row a:nth-of-type(4) {
+  background: #111;
+}
+
+.pdp-footer .social-row a svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: currentColor;
+}
+
+.pdp-footer .social-row a:nth-of-type(1) svg,
+.pdp-footer .social-row a:nth-of-type(4) svg {
+  fill: currentColor;
+}
+
+.pdp-footer .social-row a:nth-of-type(2) svg,
+.pdp-footer .social-row a:nth-of-type(3) svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .pdp-footer__socials button {
   display: inline-flex;
   align-items: center;
