@@ -1835,8 +1835,10 @@ function CollectionPage({ collection, products, searchQuery, onBack, onSelectPro
   const [selectedTheme, setSelectedTheme] = useState('')
   const [selectedSize, setSelectedSize] = useState('')
   const [selectedPriceRangeId, setSelectedPriceRangeId] = useState('')
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false)
 
   const searchValue = normalizeCollectionTerm(searchQuery)
+  const defaultBrowseKey = collection.defaultBrowseKey ?? ''
   const categoryOptions = collection.showSidebar ? getDepartmentBrowseOptions(collection.department, products) : []
   const categoryKeywords = selectedCategory ? buildCollectionKeywords(selectedCategory) : []
   const categoryMatches = categoryKeywords.length ? products.filter((product) => productMatchesKeywords(product, categoryKeywords)) : products
@@ -1896,6 +1898,108 @@ function CollectionPage({ collection, products, searchQuery, onBack, onSelectPro
   }))
 
   const breadcrumb = `Home / ${collection.title}`
+  const activeFilterCount = [
+    selectedCategory && selectedCategory !== defaultBrowseKey ? 'category' : '',
+    selectedTheme,
+    selectedSize,
+    selectedPriceRangeId,
+  ].filter(Boolean).length
+
+  const resetBrowseFilters = () => {
+    setSelectedCategory(defaultBrowseKey)
+    setSelectedTheme('')
+    setSelectedSize('')
+    setSelectedPriceRangeId('')
+  }
+
+  const handleCategorySelect = (label) => {
+    setSelectedCategory(label)
+    setSelectedTheme('')
+    setSelectedSize('')
+    setSelectedPriceRangeId('')
+  }
+
+  const renderFilterSections = () => (
+    <>
+      <section className="browse-filter">
+        <div className="browse-filter__header">
+          <h2>Categories</h2>
+        </div>
+        <div className="browse-filter__list">
+          {categoryOptions.map((option) => (
+            <button
+              key={option.id}
+              className={`browse-filter__item${selectedCategory === option.label ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => handleCategorySelect(option.label)}
+            >
+              <span>{option.label}</span>
+              <b>{option.count}</b>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {themeOptions.length ? (
+        <section className="browse-filter">
+          <div className="browse-filter__header">
+            <h2>Themes</h2>
+          </div>
+          <div className="browse-filter__list">
+            {themeOptions.map((option) => (
+              <button
+                key={option.id}
+                className={`browse-filter__item${selectedTheme === option.id ? ' is-active' : ''}`}
+                type="button"
+                onClick={() => setSelectedTheme((current) => (current === option.id ? '' : option.id))}
+              >
+                <span>{option.label}</span>
+                <b>{option.count}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {sizeOptions.length ? (
+        <section className="browse-filter">
+          <div className="browse-filter__header">
+            <h2>Size</h2>
+          </div>
+          <div className="browse-filter__chips">
+            {sizeOptions.map((size) => (
+              <button
+                key={size}
+                className={selectedSize === size ? 'is-active' : ''}
+                type="button"
+                onClick={() => setSelectedSize((current) => (current === size ? '' : size))}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="browse-filter">
+        <div className="browse-filter__header">
+          <h2>Prices</h2>
+        </div>
+        <div className="browse-filter__list">
+          {browsePriceRanges.map((range) => (
+            <button
+              key={range.id}
+              className={`browse-filter__item${selectedPriceRangeId === range.id ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => setSelectedPriceRangeId((current) => (current === range.id ? '' : range.id))}
+            >
+              <span>{range.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
+  )
 
   return (
     <section className={`section-block browse-page${collection.showSidebar ? ' has-sidebar' : ''}`}>
@@ -1914,103 +2018,28 @@ function CollectionPage({ collection, products, searchQuery, onBack, onSelectPro
           </div>
         </div>
 
-        <label className="browse-page__sort">
-          <span>Sort By</span>
-          <select value={sortOption} onChange={(event) => setSortOption(event.target.value)}>
-            <option value="latest">Newest First</option>
-            <option value="price-low">Price: Low To High</option>
-            <option value="price-high">Price: High To Low</option>
-            <option value="name">Name: A To Z</option>
-          </select>
-        </label>
+        <div className="browse-page__actions">
+          <label className="browse-page__sort">
+            <span>Sort By</span>
+            <select value={sortOption} onChange={(event) => setSortOption(event.target.value)}>
+              <option value="latest">Newest First</option>
+              <option value="price-low">Price: Low To High</option>
+              <option value="price-high">Price: High To Low</option>
+              <option value="name">Name: A To Z</option>
+            </select>
+          </label>
+
+          {collection.showSidebar ? (
+            <button className="browse-page__filter-toggle" type="button" onClick={() => setIsMobileFilterOpen(true)}>
+              Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className={`browse-page__layout${collection.showSidebar ? ' has-sidebar' : ''}`}>
         {collection.showSidebar ? (
-          <aside className="browse-page__sidebar">
-            <section className="browse-filter">
-              <div className="browse-filter__header">
-                <h2>Categories</h2>
-              </div>
-              <div className="browse-filter__list">
-                {categoryOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    className={`browse-filter__item${selectedCategory === option.label ? ' is-active' : ''}`}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategory(option.label)
-                      setSelectedTheme('')
-                      setSelectedSize('')
-                      setSelectedPriceRangeId('')
-                    }}
-                  >
-                    <span>{option.label}</span>
-                    <b>{option.count}</b>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {themeOptions.length ? (
-              <section className="browse-filter">
-                <div className="browse-filter__header">
-                  <h2>Themes</h2>
-                </div>
-                <div className="browse-filter__list">
-                  {themeOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      className={`browse-filter__item${selectedTheme === option.id ? ' is-active' : ''}`}
-                      type="button"
-                      onClick={() => setSelectedTheme((current) => (current === option.id ? '' : option.id))}
-                    >
-                      <span>{option.label}</span>
-                      <b>{option.count}</b>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {sizeOptions.length ? (
-              <section className="browse-filter">
-                <div className="browse-filter__header">
-                  <h2>Size</h2>
-                </div>
-                <div className="browse-filter__chips">
-                  {sizeOptions.map((size) => (
-                    <button
-                      key={size}
-                      className={selectedSize === size ? 'is-active' : ''}
-                      type="button"
-                      onClick={() => setSelectedSize((current) => (current === size ? '' : size))}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <section className="browse-filter">
-              <div className="browse-filter__header">
-                <h2>Prices</h2>
-              </div>
-              <div className="browse-filter__list">
-                {browsePriceRanges.map((range) => (
-                  <button
-                    key={range.id}
-                    className={`browse-filter__item${selectedPriceRangeId === range.id ? ' is-active' : ''}`}
-                    type="button"
-                    onClick={() => setSelectedPriceRangeId((current) => (current === range.id ? '' : range.id))}
-                  >
-                    <span>{range.label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          </aside>
+          <aside className="browse-page__sidebar">{renderFilterSections()}</aside>
         ) : null}
 
         <div className="browse-page__content">
@@ -2031,14 +2060,7 @@ function CollectionPage({ collection, products, searchQuery, onBack, onSelectPro
               <h2>No products found</h2>
               <p>Try another category, theme, size, or price range.</p>
               <div className="collection-empty__actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedTheme('')
-                    setSelectedSize('')
-                    setSelectedPriceRangeId('')
-                  }}
-                >
+                <button type="button" onClick={resetBrowseFilters}>
                   Reset Filters
                 </button>
               </div>
@@ -2046,6 +2068,34 @@ function CollectionPage({ collection, products, searchQuery, onBack, onSelectPro
           )}
         </div>
       </div>
+
+      {collection.showSidebar ? (
+        <div className={`browse-mobile-filter${isMobileFilterOpen ? ' is-open' : ''}`} aria-hidden={!isMobileFilterOpen}>
+          <button className="browse-mobile-filter__backdrop" type="button" onClick={() => setIsMobileFilterOpen(false)} />
+          <div className="browse-mobile-filter__panel" role="dialog" aria-modal="true" aria-label="Product filters">
+            <div className="browse-mobile-filter__header">
+              <div>
+                <p>Refine your picks</p>
+                <h2>Filters</h2>
+              </div>
+              <button type="button" onClick={() => setIsMobileFilterOpen(false)}>
+                x
+              </button>
+            </div>
+
+            <div className="browse-mobile-filter__body">{renderFilterSections()}</div>
+
+            <div className="browse-mobile-filter__actions">
+              <button type="button" onClick={resetBrowseFilters}>
+                Reset
+              </button>
+              <button className="is-primary" type="button" onClick={() => setIsMobileFilterOpen(false)}>
+                View {productCards.length}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
