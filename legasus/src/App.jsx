@@ -1550,12 +1550,11 @@ const buildCustomerProductsFromAdminUploads = (products) => {
         material: ['Premium fabric blend', 'Machine wash'],
         origin: 'India',
         manufacturer: [
-          'Legasus Retail Pvt. Ltd.',
-          '224, Tania Jogani Industrial Premises',
-          'J.R. Boricha Marg',
-          'Lower Parel (E)',
-          'Mumbai - 400 011',
-          'connect@legasus.store',
+          'Amit Garments Pvt. Ltd.',
+          'F-67, Harsh Vihar Hari Nagar Tanki Road',
+          'Badarpur Part-3',
+          'New Delhi - 110044',
+          'legasus.co@gmail.com',
         ],
       },
       description: [
@@ -7813,4 +7812,3 @@ function App() {
 }
 
 export default App
-

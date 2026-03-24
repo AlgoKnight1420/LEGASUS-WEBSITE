@@ -15,13 +15,11 @@ export const sizeChartRows = [
 ]
 
 const manufacturer = [
-  'Legasus Retail Pvt. Ltd.',
-  '224, Tania Jogani Industrial Premises',
-  'J.R. Boricha Marg',
-  'Lower Parel (E)',
-  'Mumbai - 400 011',
-  'connect@legasus.store',
-  'Customer care no. +91 22-68493328',
+  'Amit Garments Pvt. Ltd.',
+  'F-67, Harsh Vihar Hari Nagar Tanki Road',
+  'Badarpur Part-3',
+  'New Delhi - 110044',
+  'legasus.co@gmail.com',
 ]
 
 const sharedReturnText =
