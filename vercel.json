@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd legasus && npm install",
+  "buildCommand": "cd legasus && npm run build",
+  "outputDirectory": "legasus/dist"
+}

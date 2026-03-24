@@ -1,5 +1,9 @@
 {
-  "dependencies": {
-    "vite": "^5.2.0"
+  "name": "legausus-main",
+  "private": true,
+  "scripts": {
+    "build": "cd legasus && npm run build",
+    "dev": "cd legasus && npm run dev",
+    "install:app": "cd legasus && npm install"
   }
 }
