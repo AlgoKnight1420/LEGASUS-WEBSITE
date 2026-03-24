@@ -1054,6 +1054,14 @@
   background: #d8d7d8;
 }
 
+.pdp-footer__desktop {
+  display: block;
+}
+
+.pdp-footer__mobile {
+  display: none;
+}
+
 .pdp-footer__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1370,6 +1378,21 @@
 
   .pdp-footer__social-icons {
     flex-wrap: wrap;
+  }
+
+  .pdp-footer {
+    padding: 0;
+    background:
+      radial-gradient(circle at top center, rgba(255, 255, 255, 0.46), transparent 36%),
+      #dedddd;
+  }
+
+  .pdp-footer__desktop {
+    display: none;
+  }
+
+  .pdp-footer__mobile {
+    display: block;
   }
 }
 

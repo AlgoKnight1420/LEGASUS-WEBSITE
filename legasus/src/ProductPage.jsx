@@ -16,6 +16,9 @@ const footerColumns = [
   { title: 'Store Near Me', links: ['Mumbai', 'Pune', 'Bangalore', 'Hubballi', 'View More'] },
 ]
 
+const footerPaymentPartners = ['PhonePe', 'GPay', 'Amazon Pay', 'Mastercard', 'MobiKwik', 'Paytm', 'UPI']
+const footerShippingPartners = ['DTDC', 'Delhivery', 'Ecom Express', 'Xpressbees']
+
 const defaultSections = {
   productDetails: true,
   productDescription: false,
@@ -493,6 +496,8 @@ function ProductPage({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
+  const [isKnowMoreOpen, setIsKnowMoreOpen] = useState(true)
+  const [isWhoWeAreOpen, setIsWhoWeAreOpen] = useState(false)
 
   const activeDepartment = currentProduct.department
   const relatedProducts = (currentProduct.recommendedIds ?? []).map((id) => productMap.get(id) ?? getProductById(id)).filter(Boolean)
@@ -1170,44 +1175,142 @@ function ProductPage({
       </main>
 
       <footer className="pdp-footer">
-        <div className="pdp-footer__grid">
-          {footerColumns.map((column) => (
-            <section key={column.title}>
-              <h3>{column.title}</h3>
-              <div className="pdp-footer__links">
-                {column.links.map((link) => (
-                  <button key={link} type="button" onClick={() => setFeedback({ tone: 'info', message: `${link} link can be connected next.` })}>
-                    {link}
-                  </button>
-                ))}
+        <div className="pdp-footer__desktop">
+          <div className="pdp-footer__grid">
+            {footerColumns.map((column) => (
+              <section key={column.title}>
+                <h3>{column.title}</h3>
+                <div className="pdp-footer__links">
+                  {column.links.map((link) => (
+                    <button key={link} type="button" onClick={() => setFeedback({ tone: 'info', message: `${link} link can be connected next.` })}>
+                      {link}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <div className="pdp-footer__bottom">
+            <div className="pdp-footer__features">
+              <span><RupeeIcon />COD Available</span>
+              <span><ReturnIcon />7 Days Easy Exchange Only</span>
+            </div>
+
+            <div className="pdp-footer__apps">
+              <p>Experience the Legasus Store App</p>
+              <div>
+                <button type="button">Get it on Google Play</button>
+                <button type="button">Download on the App Store</button>
               </div>
-            </section>
-          ))}
+            </div>
+
+            <div className="pdp-footer__socials">
+              <span>Follow Us.</span>
+              <div className="pdp-footer__social-icons">
+                <button type="button" aria-label="Facebook"><FacebookIcon /></button>
+                <button type="button" aria-label="Instagram"><InstagramIcon /></button>
+                <button type="button" aria-label="WhatsApp"><WhatsAppIcon /></button>
+                <button type="button" aria-label="X"><TwitterIcon /></button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="pdp-footer__bottom">
-          <div className="pdp-footer__features">
-            <span><RupeeIcon />COD Available</span>
-            <span><ReturnIcon />7 Days Easy Exchange Only</span>
-          </div>
+        <div className="site-footer__mobile pdp-footer__mobile">
+          <button className="site-footer__mobile-toggle" type="button" onClick={() => setIsKnowMoreOpen((current) => !current)}>
+            <span>Know more about The Legasus Store</span>
+            <ChevronIcon expanded={isKnowMoreOpen} />
+          </button>
 
-          <div className="pdp-footer__apps">
-            <p>Experience the Legasus Store App</p>
-            <div>
-              <button type="button">Get it on Google Play</button>
-              <button type="button">Download on the App Store</button>
-            </div>
-          </div>
+          {isKnowMoreOpen ? (
+            <div className="site-footer__mobile-body">
+              <div className="site-footer__mobile-app">
+                <p>Experience the Legasus Store App</p>
+                <div className="store-badges store-badges--mobile">
+                  <a href="#0">
+                    <small>Get it on</small>
+                    <strong>Google Play</strong>
+                  </a>
+                  <a href="#0">
+                    <small>Download on the</small>
+                    <strong>App Store</strong>
+                  </a>
+                </div>
+              </div>
 
-          <div className="pdp-footer__socials">
-            <span>Follow Us.</span>
-            <div className="pdp-footer__social-icons">
-              <button type="button" aria-label="Facebook"><FacebookIcon /></button>
-              <button type="button" aria-label="Instagram"><InstagramIcon /></button>
-              <button type="button" aria-label="WhatsApp"><WhatsAppIcon /></button>
-              <button type="button" aria-label="X"><TwitterIcon /></button>
+              <div className="site-footer__mobile-grid">
+                {footerColumns.map((column) => (
+                  <section key={column.title}>
+                    <h3>{column.title}</h3>
+                    {column.links.map((link) => (
+                      <a key={link} href="#0">
+                        {link}
+                      </a>
+                    ))}
+                  </section>
+                ))}
+              </div>
+
+              <div className="footer-features footer-features--mobile">
+                <span>
+                  <RupeeIcon />
+                  COD Available
+                </span>
+                <span>
+                  <ReturnIcon />
+                  7 Days Easy Exchange Only
+                </span>
+              </div>
+
+              <div className="social-row social-row--mobile">
+                <span>Follow Us.</span>
+                <div className="social-row__icons">
+                  <a href="#0" aria-label="Follow us on Facebook">
+                    <FacebookIcon />
+                  </a>
+                  <a href="#0" aria-label="Follow us on Instagram">
+                    <InstagramIcon />
+                  </a>
+                  <a href="#0" aria-label="Message us on WhatsApp">
+                    <WhatsAppIcon />
+                  </a>
+                  <a href="#0" aria-label="Follow us on X">
+                    <TwitterIcon />
+                  </a>
+                </div>
+              </div>
+
+              <button className="site-footer__mobile-toggle site-footer__mobile-toggle--secondary" type="button" onClick={() => setIsWhoWeAreOpen((current) => !current)}>
+                <span>Who We Are</span>
+                <strong>{isWhoWeAreOpen ? '-' : '+'}</strong>
+              </button>
+
+              {isWhoWeAreOpen ? (
+                <div className="site-footer__mobile-extra">
+                  <div className="site-footer__mobile-partners">
+                    <p>100% Secure Payment:</p>
+                    <div>
+                      {footerPaymentPartners.map((partner) => (
+                        <span key={partner}>{partner}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="site-footer__mobile-partners">
+                    <p>Shipping Partners:</p>
+                    <div>
+                      {footerShippingPartners.map((partner) => (
+                        <span key={partner}>{partner}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <small>© Legasus Store 2026-27</small>
+                </div>
+              ) : null}
             </div>
-          </div>
+          ) : null}
         </div>
       </footer>
     </div>
