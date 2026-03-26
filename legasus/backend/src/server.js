@@ -16,6 +16,7 @@ import {
   deleteUser,
   getBootstrapPayload,
   getOrderById,
+  isReservedAdminEmail,
   loginOrRegisterGoogleUser,
   loginUser,
   loginUserWithOtp,
@@ -64,6 +65,9 @@ const sendError = (response, error, status = 400) => {
     error: error instanceof Error ? error.message : 'Something went wrong.',
   })
 }
+
+const getErrorStatusCode = (error, fallbackStatus = 400) =>
+  error instanceof Error && Number.isInteger(error.statusCode) ? error.statusCode : fallbackStatus
 
 const fetchGoogleUserProfile = async (accessToken) => {
   const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -131,7 +135,7 @@ app.post('/api/auth/register', async (request, response) => {
       return sendError(response, 'Please enter your email and password.')
     }
 
-    if (String(email).trim().toLowerCase() === 'admin@legasus.com') {
+    if (isReservedAdminEmail(email)) {
       return sendError(response, 'This email is reserved for the admin account.')
     }
 
@@ -215,8 +219,7 @@ app.post('/api/auth/login/verify-otp', async (request, response) => {
     const user = await loginUserWithOtp(email)
     response.json({ user })
   } catch (error) {
-    const statusCode = error instanceof Error && Number.isInteger(error.statusCode) ? error.statusCode : 401
-    sendError(response, error, statusCode)
+    sendError(response, error, getErrorStatusCode(error, 401))
   }
 })
 

@@ -3,7 +3,7 @@
 import { randomInt } from 'node:crypto'
 import nodemailer from 'nodemailer'
 
-const loginOtpStore = new Map()
+const otpStore = new Map()
 
 const toPositiveNumber = (value, fallbackValue) => {
   const parsedValue = Number(value)
@@ -16,6 +16,8 @@ const toBoolean = (value, fallbackValue = false) => {
 }
 
 const createOtpError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode })
+
+const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase()
 
 const getOtpConfig = () => {
   const ttlMinutes = toPositiveNumber(process.env.AUTH_LOGIN_OTP_TTL_MINUTES, 10)
@@ -50,14 +52,16 @@ const isPreviewModeEnabled = () => String(process.env.NODE_ENV ?? '').trim().toL
 const cleanupExpiredOtps = () => {
   const currentTimestamp = Date.now()
 
-  for (const [email, entry] of loginOtpStore.entries()) {
+  for (const [storeKey, entry] of otpStore.entries()) {
     if (entry.expiresAt <= currentTimestamp) {
-      loginOtpStore.delete(email)
+      otpStore.delete(storeKey)
     }
   }
 }
 
 const generateOtpCode = () => String(randomInt(100000, 1000000))
+
+const getStoreKey = (scope, email) => `${String(scope ?? 'login').trim().toLowerCase()}:${normalizeEmail(email)}`
 
 const maskEmail = (email) => {
   const normalizedEmail = String(email ?? '').trim().toLowerCase()
@@ -77,7 +81,7 @@ const escapeHtml = (value) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
 
-const sendOtpEmail = async ({ email, firstName, code, ttlMinutes }) => {
+const sendOtpEmail = async ({ email, firstName, code, ttlMinutes, subject, introText, plainTextPrefix }) => {
   const config = getOtpConfig()
 
   if (!isOtpEmailConfigured()) {
@@ -101,11 +105,14 @@ const sendOtpEmail = async ({ email, firstName, code, ttlMinutes }) => {
   })
 
   const customerName = String(firstName ?? '').trim() || 'there'
-  const subject = config.subject
+  const emailSubject = String(subject ?? config.subject).trim() || config.subject
+  const bodyIntro = String(introText ?? 'Your login OTP for Legasus Store is:').trim()
+  const textPrefix = String(plainTextPrefix ?? 'Your Legasus login OTP is').trim()
+  const bodyText = `${textPrefix} ${code}. It expires in ${ttlMinutes} minutes.`
   const html = `
     <div style="font-family: Arial, sans-serif; color: #243353; line-height: 1.6;">
       <p>Hello ${escapeHtml(customerName)},</p>
-      <p>Your login OTP for Legasus Store is:</p>
+      <p>${escapeHtml(bodyIntro)}</p>
       <p style="margin: 18px 0; font-size: 28px; font-weight: 700; letter-spacing: 0.28em;">${escapeHtml(code)}</p>
       <p>This OTP will expire in ${ttlMinutes} minutes.</p>
       <p>If you did not request this code, you can ignore this email.</p>
@@ -115,21 +122,22 @@ const sendOtpEmail = async ({ email, firstName, code, ttlMinutes }) => {
   await transporter.sendMail({
     from: config.from,
     to: email,
-    subject,
-    text: `Your Legasus login OTP is ${code}. It expires in ${ttlMinutes} minutes.`,
+    subject: emailSubject,
+    text: bodyText,
     html,
   })
 
   return { previewCode: '' }
 }
 
-const requestLoginOtp = async ({ email, user }) => {
+const requestScopedOtp = async ({ email, user, scope = 'login', subject, introText, plainTextPrefix }) => {
   cleanupExpiredOtps()
 
-  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+  const normalizedEmail = normalizeEmail(email)
   const config = getOtpConfig()
   const currentTimestamp = Date.now()
-  const existingEntry = loginOtpStore.get(normalizedEmail)
+  const storeKey = getStoreKey(scope, normalizedEmail)
+  const existingEntry = otpStore.get(storeKey)
 
   if (existingEntry && existingEntry.resendAvailableAt > currentTimestamp) {
     const waitSeconds = Math.max(1, Math.ceil((existingEntry.resendAvailableAt - currentTimestamp) / 1000))
@@ -145,7 +153,7 @@ const requestLoginOtp = async ({ email, user }) => {
     attemptsRemaining: config.maxAttempts,
   }
 
-  loginOtpStore.set(normalizedEmail, nextEntry)
+  otpStore.set(storeKey, nextEntry)
 
   try {
     const { previewCode } = await sendOtpEmail({
@@ -153,6 +161,9 @@ const requestLoginOtp = async ({ email, user }) => {
       firstName: user?.firstName,
       code,
       ttlMinutes: config.ttlMinutes,
+      subject,
+      introText,
+      plainTextPrefix,
     })
 
     return {
@@ -162,21 +173,22 @@ const requestLoginOtp = async ({ email, user }) => {
       previewCode,
     }
   } catch (error) {
-    loginOtpStore.delete(normalizedEmail)
+    otpStore.delete(storeKey)
     throw error
   }
 }
 
-const verifyLoginOtp = async ({ email, otp }) => {
+const verifyScopedOtp = async ({ email, otp, scope = 'login' }) => {
   cleanupExpiredOtps()
 
-  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+  const normalizedEmail = normalizeEmail(email)
   const normalizedOtp = String(otp ?? '').trim()
   const currentTimestamp = Date.now()
-  const entry = loginOtpStore.get(normalizedEmail)
+  const storeKey = getStoreKey(scope, normalizedEmail)
+  const entry = otpStore.get(storeKey)
 
   if (!entry || entry.expiresAt <= currentTimestamp) {
-    loginOtpStore.delete(normalizedEmail)
+    otpStore.delete(storeKey)
     throw createOtpError('This OTP has expired. Please request a new code.', 400)
   }
 
@@ -184,20 +196,39 @@ const verifyLoginOtp = async ({ email, otp }) => {
     entry.attemptsRemaining -= 1
 
     if (entry.attemptsRemaining <= 0) {
-      loginOtpStore.delete(normalizedEmail)
+      otpStore.delete(storeKey)
       throw createOtpError('Too many invalid OTP attempts. Please request a new code.', 429)
     }
 
-    loginOtpStore.set(normalizedEmail, entry)
+    otpStore.set(storeKey, entry)
     throw createOtpError(`Invalid OTP. ${entry.attemptsRemaining} attempt(s) left.`, 401)
   }
 
-  loginOtpStore.delete(normalizedEmail)
+  otpStore.delete(storeKey)
 }
+
+const requestLoginOtp = async ({ email, user }) =>
+  requestScopedOtp({
+    email,
+    user,
+    scope: 'login',
+    subject: getOtpConfig().subject,
+    introText: 'Your login OTP for Legasus Store is:',
+    plainTextPrefix: 'Your Legasus login OTP is',
+  })
+
+const verifyLoginOtp = async ({ email, otp }) =>
+  verifyScopedOtp({
+    email,
+    otp,
+    scope: 'login',
+  })
 
 export {
   getOtpConfig,
   isOtpEmailConfigured,
   requestLoginOtp,
+  requestScopedOtp,
   verifyLoginOtp,
+  verifyScopedOtp,
 }

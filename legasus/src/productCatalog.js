@@ -20,6 +20,7 @@ const manufacturer = [
   'Badarpur Part-3',
   'New Delhi - 110044',
   'legasus.co@gmail.com',
+  'Contact - 9310343347',
 ]
 
 const sharedReturnText =

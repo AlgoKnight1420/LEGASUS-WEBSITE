@@ -24,6 +24,8 @@ const PRODUCTS_SHEET = 'Products'
 const ORDERS_SHEET = 'Orders'
 const BANNERS_SHEET = 'Banners'
 const PASSWORD_SALT = 'legasus-store-demo-salt'
+const DEFAULT_ADMIN_EMAIL = 'legasus.co@gmail.com'
+const DEFAULT_ADMIN_PASSWORD = 'admin123'
 const MAX_PRODUCT_IMAGES = 6
 const MAX_HOME_BANNERS = 5
 const DEPARTMENT_IDS = ['men', 'women', 'sneakers']
@@ -246,6 +248,67 @@ const safeParseJson = (value, fallbackValue) => {
 }
 
 const ensureArray = (value) => (Array.isArray(value) ? value : [])
+
+const normalizeEmailValue = (value) => String(value ?? '').trim().toLowerCase()
+
+const isReservedAdminEmail = (value) => normalizeEmailValue(value) === DEFAULT_ADMIN_EMAIL
+
+const findAdminUserFromUsers = (users) =>
+  ensureArray(users).find((user) => String(user?.role ?? 'customer') === 'admin' || isReservedAdminEmail(user?.email)) ?? null
+
+const syncAdminUsers = (users) => {
+  const currentUsers = ensureArray(users)
+  const adminUsers = currentUsers.filter((user) => String(user?.role ?? 'customer') === 'admin' || isReservedAdminEmail(user?.email))
+  const currentAdmin =
+    adminUsers.find((user) => normalizeEmailValue(user.email) === DEFAULT_ADMIN_EMAIL) ??
+    adminUsers[0] ??
+    null
+
+  const nextAdmin = {
+    ...(currentAdmin ?? {}),
+    id: 'admin-legasus',
+    firstName: String(currentAdmin?.firstName ?? 'Admin').trim() || 'Admin',
+    lastName: String(currentAdmin?.lastName ?? 'Legasus').trim() || 'Legasus',
+    email: DEFAULT_ADMIN_EMAIL,
+    passwordHash: String(currentAdmin?.passwordHash ?? '') || hashPassword(DEFAULT_ADMIN_PASSWORD),
+    birthdate: String(currentAdmin?.birthdate ?? '--') || '--',
+    phone: String(currentAdmin?.phone ?? '0000000000').trim() || '0000000000',
+    gender: String(currentAdmin?.gender ?? 'other') || 'other',
+    role: 'admin',
+    addresses: ensureArray(currentAdmin?.addresses),
+    createdAt: String(currentAdmin?.createdAt ?? normalizeDateKey()),
+    updatedAt: String(currentAdmin?.updatedAt ?? normalizeDateKey()),
+  }
+
+  const nextUsers = [
+    nextAdmin,
+    ...currentUsers.filter((user) => !(String(user?.role ?? 'customer') === 'admin' || isReservedAdminEmail(user?.email))),
+  ]
+
+  const changed =
+    !currentAdmin ||
+    adminUsers.length !== 1 ||
+    currentAdmin.id !== nextAdmin.id ||
+    normalizeEmailValue(currentAdmin.email) !== DEFAULT_ADMIN_EMAIL ||
+    String(currentAdmin.role ?? 'customer') !== 'admin'
+
+  return {
+    users: nextUsers,
+    changed,
+  }
+}
+
+const normalizeStoreData = (data) => {
+  const syncedUsers = syncAdminUsers(data.users)
+
+  return {
+    data: {
+      ...data,
+      users: syncedUsers.users,
+    },
+    changed: syncedUsers.changed,
+  }
+}
 
 const normalizeDepartmentId = (value) => {
   const normalizedValue = String(value ?? '')
@@ -504,8 +567,8 @@ const buildSeedUsers = () => [
     id: 'admin-legasus',
     firstName: 'Admin',
     lastName: 'Legasus',
-    email: 'admin@legasus.com',
-    passwordHash: hashPassword('admin123'),
+    email: DEFAULT_ADMIN_EMAIL,
+    passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD),
     birthdate: '--',
     phone: '0000000000',
     gender: 'other',
@@ -572,17 +635,17 @@ const resolveInitialData = () => {
   const banners = readRowsFromWorkbook(bannersWorkbookPath, BANNERS_SHEET, parseBanner)
 
   if (customers.length && products.length && orders.length && fs.existsSync(bannersWorkbookPath)) {
-    return { users: customers, products, orders, banners }
+    return normalizeStoreData({ users: customers, products, orders, banners }).data
   }
 
   const legacyData = readLegacyWorkbook()
 
-  return {
+  return normalizeStoreData({
     users: customers.length ? customers : legacyData?.users ?? buildSeedUsers(),
     products: products.length ? products : legacyData?.products ?? buildSeedProducts(),
     orders: orders.length ? orders : legacyData?.orders ?? seedOrders,
     banners: banners.length ? banners : legacyData?.banners ?? [],
-  }
+  }).data
 }
 
 const ensureStorageFiles = async () => {
@@ -595,6 +658,12 @@ const ensureStorageFiles = async () => {
     fs.existsSync(bannersWorkbookPath)
 
   if (hasAllFiles) {
+    const normalizedStore = normalizeStoreData(readAllRaw())
+
+    if (normalizedStore.changed) {
+      await writeAllRaw(normalizedStore.data)
+    }
+
     cleanupLegacyWorkbook()
     return
   }
@@ -705,6 +774,10 @@ const registerUser = async (payload) =>
       throw new Error('This email is already registered. Please login instead.')
     }
 
+    if (isReservedAdminEmail(normalizedEmail)) {
+      throw new Error('This email is reserved for the admin account.')
+    }
+
     const nextUser = {
       id: `user-${Date.now()}`,
       firstName: String(payload.firstName ?? '').trim(),
@@ -788,7 +861,7 @@ const loginOrRegisterGoogleUser = async ({ email, firstName, lastName }) =>
       }
     }
 
-    if (normalizedEmail === 'admin@legasus.com') {
+    if (isReservedAdminEmail(normalizedEmail)) {
       throw new Error('This email is reserved for the admin account.')
     }
 
@@ -845,6 +918,47 @@ const updateUser = async (userId, payload) =>
         users: data.users.map((user) => (user.id === userId ? nextUser : user)),
       },
       response: sanitizeUser(nextUser),
+    }
+  })
+
+const getAdminUser = async () => {
+  const data = await readAll()
+  const adminUser = findAdminUserFromUsers(data.users)
+
+  if (!adminUser) {
+    throw new Error('Admin account not found.')
+  }
+
+  return sanitizeUser(adminUser)
+}
+
+const updateAdminPassword = async (newPassword) =>
+  mutateStore(async (data) => {
+    const adminUser = findAdminUserFromUsers(data.users)
+
+    if (!adminUser) {
+      throw new Error('Admin account not found.')
+    }
+
+    const nextAdmin = {
+      ...adminUser,
+      id: 'admin-legasus',
+      email: DEFAULT_ADMIN_EMAIL,
+      role: 'admin',
+      passwordHash: hashPassword(newPassword ?? ''),
+      updatedAt: normalizeDateKey(),
+    }
+
+    return {
+      data: {
+        ...data,
+        users: data.users.map((user) =>
+          user.id === adminUser.id || String(user?.role ?? 'customer') === 'admin' || isReservedAdminEmail(user?.email)
+            ? nextAdmin
+            : user,
+        ),
+      },
+      response: sanitizeUser(nextAdmin),
     }
   })
 
@@ -1426,6 +1540,7 @@ const applyRazorpayWebhookEvent = async (payload) =>
   })
 
 export {
+  DEFAULT_ADMIN_EMAIL,
   MAX_HOME_BANNERS,
   MAX_PRODUCT_IMAGES,
   applyRazorpayWebhookEvent,
@@ -1434,8 +1549,10 @@ export {
   deleteProductRecord,
   deleteUser,
   getBootstrapPayload,
+  getAdminUser,
   getOrderById,
   getStockStatus,
+  isReservedAdminEmail,
   loginOrRegisterGoogleUser,
   loginUser,
   loginUserWithOtp,
@@ -1444,6 +1561,7 @@ export {
   refreshOrderTracking,
   registerUser,
   replaceDepartmentBanners,
+  updateAdminPassword,
   updateOrderStatus,
   updateProduct,
   updateProductStock,

@@ -951,7 +951,7 @@ const AUTH_SESSION_STORAGE_KEY = 'legasus-auth-session'
 const ADMIN_PRODUCTS_STORAGE_KEY = 'legasus-admin-products'
 const ADMIN_ORDERS_STORAGE_KEY = 'legasus-admin-orders'
 const ADMIN_HOME_BANNERS_STORAGE_KEY = 'legasus-admin-home-banners'
-const DEFAULT_ADMIN_EMAIL = 'admin@legasus.com'
+const DEFAULT_ADMIN_EMAIL = 'legasus.co@gmail.com'
 const DEFAULT_ADMIN_PASSWORD = 'admin123'
 
 const adminNavigation = [
@@ -1559,6 +1559,7 @@ const buildCustomerProductsFromAdminUploads = (products) => {
           'Badarpur Part-3',
           'New Delhi - 110044',
           'legasus.co@gmail.com',
+          'Contact - 9310343347',
         ],
       },
       description: [
@@ -1615,9 +1616,19 @@ const formatDate = (value) => {
 
 const getStockStatus = (quantity) => (Number(quantity) > 0 ? 'in-stock' : 'out-of-stock')
 
+const isReservedAdminEmail = (value) => String(value ?? '').trim().toLowerCase() === DEFAULT_ADMIN_EMAIL
+
 const normalizeStoredUser = (user) => {
   if (!user) return null
-  if (user.email === DEFAULT_ADMIN_EMAIL) return { ...user, role: 'admin', addresses: Array.isArray(user.addresses) ? user.addresses : [] }
+  if (user.role === 'admin' || isReservedAdminEmail(user.email)) {
+    return {
+      ...user,
+      email: DEFAULT_ADMIN_EMAIL,
+      role: 'admin',
+      addresses: Array.isArray(user.addresses) ? user.addresses : [],
+    }
+  }
+
   return { ...user, role: user.role ?? 'customer', addresses: Array.isArray(user.addresses) ? user.addresses : [] }
 }
 
@@ -4538,8 +4549,9 @@ function App() {
   const searchValue = searchQuery.trim().toLowerCase()
   const isBackendReady = backendMode === 'ready'
   const normalizedLoginEmail = loginForm.email.trim().toLowerCase()
+  const isAdminLoginEmail = isReservedAdminEmail(normalizedLoginEmail)
   const isOtpRequestedForCurrentEmail = Boolean(loginOtpState.requestedEmail) && loginOtpState.requestedEmail === normalizedLoginEmail
-  const isOtpStepVisible = isOtpRequestedForCurrentEmail && isBackendReady && normalizedLoginEmail !== DEFAULT_ADMIN_EMAIL
+  const isOtpStepVisible = isOtpRequestedForCurrentEmail && isBackendReady && !isAdminLoginEmail
   const adminProductMap = new Map(adminProducts.map((product) => [product.id, product]))
   const storefrontProducts = productCatalog.map((product) => {
     const override = adminProductMap.get(product.id)
@@ -4676,7 +4688,7 @@ function App() {
   })
 
   registeredUsers
-    .filter((user) => (user.role ?? 'customer') !== 'admin' && user.email !== DEFAULT_ADMIN_EMAIL)
+    .filter((user) => (user.role ?? 'customer') !== 'admin' && !isReservedAdminEmail(user.email))
     .forEach((user) => {
       const fullName = `${user.firstName} ${user.lastName}`.trim()
       const existingCustomer = adminCustomerMap.get(user.email)
@@ -4840,6 +4852,18 @@ function App() {
 
     return () => window.clearInterval(timerId)
   }, [heroSlides.length])
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setLoginOtpState((current) => ({
+        ...current,
+        expiresInSeconds: Math.max(0, Number(current.expiresInSeconds ?? 0) - 1),
+        resendAvailableInSeconds: Math.max(0, Number(current.resendAvailableInSeconds ?? 0) - 1),
+      }))
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [])
 
   useEffect(() => {
     document.body.classList.toggle('drawer-open', isMenuOpen)
@@ -5911,7 +5935,7 @@ function App() {
       return
     }
 
-    if (normalizedEmail === DEFAULT_ADMIN_EMAIL) {
+    if (isReservedAdminEmail(normalizedEmail)) {
       setAuthError('This email is reserved for the admin account.')
       return
     }
@@ -6078,16 +6102,18 @@ function App() {
     event.preventDefault()
     clearAuthFeedback()
 
+    const adminEmailForLogin = isAdminLoginEmail ? DEFAULT_ADMIN_EMAIL : normalizedLoginEmail
+
     if (!normalizedLoginEmail || !loginForm.password) {
       setAuthError('Please enter your email and password.')
       return
     }
 
     if (isBackendReady) {
-      if (normalizedLoginEmail === DEFAULT_ADMIN_EMAIL) {
+      if (isAdminLoginEmail) {
         try {
           const { user } = await loginWithPassword({
-            email: normalizedLoginEmail,
+            email: adminEmailForLogin,
             password: loginForm.password,
           })
 
@@ -6106,7 +6132,7 @@ function App() {
         return
       }
     } else {
-      if (normalizedLoginEmail === DEFAULT_ADMIN_EMAIL && loginForm.password === DEFAULT_ADMIN_PASSWORD) {
+      if (isAdminLoginEmail && loginForm.password === DEFAULT_ADMIN_PASSWORD) {
         completeLogin({
           id: 'admin-legasus',
           firstName: 'Admin',
@@ -7364,14 +7390,14 @@ function App() {
                             <p className="auth-form__hint">
                               {!isBackendReady
                                 ? 'Login will use password directly until the backend is connected.'
-                                : (normalizedLoginEmail === DEFAULT_ADMIN_EMAIL
+                                : (isAdminLoginEmail
                                     ? 'Admin login continues with email and password only.'
                                     : 'After you press login, we will verify the password and open the OTP verification step.')}
                             </p>
 
                             <div className="auth-form__actions">
                               <button className="auth-form__submit" type="submit">
-                                {isBackendReady && normalizedLoginEmail !== DEFAULT_ADMIN_EMAIL ? 'Login' : 'Proceed'}
+                                {isBackendReady && !isAdminLoginEmail ? 'Login' : 'Proceed'}
                               </button>
                             </div>
 

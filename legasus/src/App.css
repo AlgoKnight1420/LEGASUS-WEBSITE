@@ -2210,14 +2210,45 @@ rl
 .auth-card__actions {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.4rem;
 }
 
-.auth-card__actions button:first-child {
+.auth-card__actions button:not(.is-primary) {
   border: 1px solid #178d8f;
   background: #fff;
   color: #178d8f;
+}
+
+.auth-account__security {
+  display: grid;
+  gap: 0.95rem;
+  margin-top: 1.25rem;
+  padding: 1.1rem;
+  border: 1px solid rgba(20, 31, 54, 0.12);
+  background: rgba(249, 249, 247, 0.78);
+}
+
+.auth-account__security-header {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.auth-account__security-header h3,
+.auth-account__security-header p {
+  margin: 0;
+}
+
+.auth-account__security-header h3 {
+  color: #243353;
+  font-size: 1.05rem;
+}
+
+.auth-account__security-header p {
+  color: #5f6a7e;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .auth-form--register {
