@@ -16,6 +16,7 @@ import {
   deleteUser,
   getBootstrapPayload,
   getOrderById,
+  loginOrRegisterGoogleUser,
   loginUser,
   loginUserWithOtp,
   placeCheckoutOrders,
@@ -62,6 +63,33 @@ const sendError = (response, error, status = 400) => {
   response.status(status).json({
     error: error instanceof Error ? error.message : 'Something went wrong.',
   })
+}
+
+const fetchGoogleUserProfile = async (accessToken) => {
+  const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  const payload = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error('Unable to verify your Google account right now.')
+  }
+
+  if (!payload.email || payload.email_verified === false) {
+    throw new Error('Your Google account must have a verified email address.')
+  }
+
+  const fullName = String(payload.name ?? '').trim()
+  const [fallbackFirstName = '', ...fallbackLastName] = fullName.split(/\s+/).filter(Boolean)
+
+  return {
+    email: String(payload.email).trim().toLowerCase(),
+    firstName: String(payload.given_name ?? fallbackFirstName).trim(),
+    lastName: String(payload.family_name ?? fallbackLastName.join(' ')).trim(),
+  }
 }
 
 app.get('/api/health', (_request, response) => {
@@ -131,6 +159,22 @@ app.post('/api/auth/login', async (request, response) => {
     }
 
     const user = await loginUser(email, password)
+    response.json({ user })
+  } catch (error) {
+    sendError(response, error, 401)
+  }
+})
+
+app.post('/api/auth/google', async (request, response) => {
+  try {
+    const { accessToken } = request.body ?? {}
+
+    if (!String(accessToken ?? '').trim()) {
+      return sendError(response, 'Google sign-in could not be completed. Please try again.')
+    }
+
+    const profile = await fetchGoogleUserProfile(String(accessToken).trim())
+    const user = await loginOrRegisterGoogleUser(profile)
     response.json({ user })
   } catch (error) {
     sendError(response, error, 401)

@@ -36,6 +36,12 @@ const loginWithPassword = (payload) =>
     body: JSON.stringify(payload),
   })
 
+const loginWithGoogle = (payload) =>
+  request('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
 const requestLoginOtp = (payload) =>
   request('/auth/login/request-otp', {
     method: 'POST',
@@ -126,6 +132,7 @@ export {
   deleteAdminProduct,
   generateAdminOrderDocument,
   getOrderTracking,
+  loginWithGoogle,
   loginWithPassword,
   placeCheckoutOrder,
   requestLoginOtp,

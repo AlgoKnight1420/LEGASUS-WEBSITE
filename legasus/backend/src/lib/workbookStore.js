@@ -760,6 +760,62 @@ const loginUserWithOtp = async (email) => {
   return sanitizeUser(matchedUser)
 }
 
+const loginOrRegisterGoogleUser = async ({ email, firstName, lastName }) =>
+  mutateStore(async (data) => {
+    const normalizedEmail = String(email ?? '').trim().toLowerCase()
+    const resolvedFirstName = String(firstName ?? '').trim() || 'Google'
+    const resolvedLastName = String(lastName ?? '').trim() || 'User'
+    const matchedUser = findStoredUserByEmail(data.users, normalizedEmail)
+
+    if (matchedUser) {
+      if (matchedUser.role === 'admin') {
+        throw new Error('Admin account cannot use Google login.')
+      }
+
+      const nextUser = {
+        ...matchedUser,
+        firstName: matchedUser.firstName || resolvedFirstName,
+        lastName: matchedUser.lastName || resolvedLastName,
+        updatedAt: normalizeDateKey(),
+      }
+
+      return {
+        data: {
+          ...data,
+          users: data.users.map((user) => (user.id === matchedUser.id ? nextUser : user)),
+        },
+        response: sanitizeUser(nextUser),
+      }
+    }
+
+    if (normalizedEmail === 'admin@legasus.com') {
+      throw new Error('This email is reserved for the admin account.')
+    }
+
+    const nextUser = {
+      id: `user-${Date.now()}`,
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      email: normalizedEmail,
+      passwordHash: hashPassword(`google-auth:${normalizedEmail}:${Date.now()}`),
+      birthdate: '',
+      phone: '',
+      gender: 'other',
+      role: 'customer',
+      addresses: [],
+      createdAt: normalizeDateKey(),
+      updatedAt: normalizeDateKey(),
+    }
+
+    return {
+      data: {
+        ...data,
+        users: [...data.users, nextUser],
+      },
+      response: sanitizeUser(nextUser),
+    }
+  })
+
 const updateUser = async (userId, payload) =>
   mutateStore(async (data) => {
     const existingUser = data.users.find((user) => user.id === userId)
@@ -1380,6 +1436,7 @@ export {
   getBootstrapPayload,
   getOrderById,
   getStockStatus,
+  loginOrRegisterGoogleUser,
   loginUser,
   loginUserWithOtp,
   placeCheckoutOrders,

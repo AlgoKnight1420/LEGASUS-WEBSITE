@@ -1913,21 +1913,26 @@ rl
 
 .auth-social {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+  justify-items: center;
   gap: 1.4rem;
   margin-bottom: 1rem;
 }
 
 .auth-social button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 22rem);
   position: relative;
   min-height: 3rem;
-  padding: 0.75rem 1rem 0.75rem 3.85rem;
+  padding: 0.75rem 3.85rem;
   border: 1px solid rgba(20, 31, 54, 0.16);
   border-radius: 0.8rem;
   background: #fff;
   color: #4d5e7f;
   font-weight: 700;
-  text-align: left;
+  text-align: center;
 }
 
 .auth-social button::before {
@@ -1961,8 +1966,8 @@ rl
 }
 
 .auth-social button:disabled {
-  opacity: 1;
-  cursor: default;
+  opacity: 0.72;
+  cursor: wait;
 }
 
 .auth-divider {

@@ -10,6 +10,7 @@ import {
   deleteAdminProduct as deleteAdminProductApi,
   generateAdminOrderDocument,
   getOrderTracking,
+  loginWithGoogle,
   loginWithPassword,
   placeCheckoutOrder,
   requestLoginOtp as requestLoginOtpApi,
@@ -771,6 +772,9 @@ const customerAccountSections = [
   { id: 'support', label: 'FAQs' },
   { id: 'profile', label: 'Profile' },
 ]
+
+const rawGoogleClientId = String(import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '').trim()
+const GOOGLE_CLIENT_ID = rawGoogleClientId && !/^your[_-]/i.test(rawGoogleClientId) ? rawGoogleClientId : ''
 
 const supportFaqSections = [
   {
@@ -1615,6 +1619,73 @@ const normalizeStoredUser = (user) => {
   if (!user) return null
   if (user.email === DEFAULT_ADMIN_EMAIL) return { ...user, role: 'admin', addresses: Array.isArray(user.addresses) ? user.addresses : [] }
   return { ...user, role: user.role ?? 'customer', addresses: Array.isArray(user.addresses) ? user.addresses : [] }
+}
+
+let googleIdentityScriptPromise
+
+const loadGoogleIdentityScript = () => {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Google sign-in is available in the browser only.'))
+  }
+
+  if (window.google?.accounts?.oauth2) {
+    return Promise.resolve(window.google)
+  }
+
+  if (googleIdentityScriptPromise) {
+    return googleIdentityScriptPromise
+  }
+
+  googleIdentityScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[data-google-identity="true"]')
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(window.google), { once: true })
+      existingScript.addEventListener('error', () => reject(new Error('Unable to load Google sign-in right now.')), { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.dataset.googleIdentity = 'true'
+    script.onload = () => resolve(window.google)
+    script.onerror = () => reject(new Error('Unable to load Google sign-in right now.'))
+    document.body.appendChild(script)
+  })
+
+  return googleIdentityScriptPromise
+}
+
+const requestGoogleAccessToken = async () => {
+  if (!GOOGLE_CLIENT_ID) {
+    throw new Error('Google login is not configured yet. Add VITE_GOOGLE_CLIENT_ID to the frontend environment.')
+  }
+
+  const google = await loadGoogleIdentityScript()
+
+  return new Promise((resolve, reject) => {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: (response) => {
+        if (!response?.access_token) {
+          reject(new Error(response?.error_description ?? 'Google sign-in was cancelled.'))
+          return
+        }
+
+        resolve(response.access_token)
+      },
+      error_callback: () => {
+        reject(new Error('Google sign-in popup was closed before completing login.'))
+      },
+    })
+
+    tokenClient.requestAccessToken({
+      prompt: 'select_account',
+    })
+  })
 }
 
 const loadRazorpayCheckoutScript = () => {
@@ -4416,6 +4487,7 @@ function App() {
   const [authError, setAuthError] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [isGoogleLoginPending, setIsGoogleLoginPending] = useState(false)
   const [loginOtpState, setLoginOtpState] = useState(initialLoginOtpState)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -5981,6 +6053,27 @@ function App() {
     await handleVerifyEmailOtp()
   }
 
+  const handleGoogleSignIn = async () => {
+    clearAuthFeedback()
+
+    if (!isBackendReady) {
+      setAuthError('Google login works when the backend is connected.')
+      return
+    }
+
+    setIsGoogleLoginPending(true)
+
+    try {
+      const accessToken = await requestGoogleAccessToken()
+      const { user } = await loginWithGoogle({ accessToken })
+      completeLogin(user)
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Google sign-in could not be completed.')
+    } finally {
+      setIsGoogleLoginPending(false)
+    }
+  }
+
   const handleLogin = async (event) => {
     event.preventDefault()
     clearAuthFeedback()
@@ -7206,8 +7299,9 @@ function App() {
                       {authMode === 'login' && !isOtpStepVisible ? (
                         <>
                           <div className="auth-social">
-                            <button type="button" disabled>Facebook</button>
-                            <button type="button" disabled>Google</button>
+                            <button type="button" onClick={handleGoogleSignIn} disabled={isGoogleLoginPending}>
+                              {isGoogleLoginPending ? 'Connecting...' : 'Google'}
+                            </button>
                           </div>
                           <div className="auth-divider">
                             <span>or</span>
