@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './ProductPage.css'
+import BrandMark from './BrandMark'
 import {
   getFirstProductByDepartment,
   getProductById,
@@ -408,14 +409,6 @@ function RupeeIcon() {
   )
 }
 
-function BrandMark() {
-  return (
-    <div className="brand-mark pdp-brand" aria-label="Legasus storefront">
-      <strong>LEGASUS</strong>
-    </div>
-  )
-}
-
 function IconButton({ children, count, active = false, label, onClick, className = '' }) {
   return (
     <button className={`pdp-icon-button${active ? ' is-active' : ''}${className ? ` ${className}` : ''}`} type="button" aria-label={label} onClick={onClick}>
@@ -686,7 +679,7 @@ function ProductPage({
       <aside className={`mega-drawer${isMenuOpen ? ' is-open' : ''}`}>
         <div className="mega-drawer__inner">
           <div className="mega-drawer__header">
-            <BrandMark />
+            <BrandMark className="pdp-brand" />
             <button className="drawer-close" type="button" aria-label="Close menu" onClick={() => setIsMenuOpen(false)}>
               <CloseIcon />
             </button>
@@ -846,7 +839,7 @@ function ProductPage({
         </div>
 
         <button className="pdp-brand-button" type="button" onClick={onBack} aria-label="Go back home">
-          <BrandMark />
+          <BrandMark className="pdp-brand" />
         </button>
 
         <div className="pdp-header__right">
@@ -911,7 +904,7 @@ function ProductPage({
           </button>
 
           <button className="brand-home-button pdp-brand-button pdp-brand-button--mobile" type="button" onClick={onBack} aria-label="Go back home">
-            <BrandMark />
+            <BrandMark className="pdp-brand" />
           </button>
 
           <div className="site-header__mobile-actions pdp-header-mobile__actions">

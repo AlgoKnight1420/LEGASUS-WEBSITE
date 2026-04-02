@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import BrandMark from './BrandMark'
 import ProductPage from './ProductPage'
 import useVoiceSearch from './useVoiceSearch'
 import { productCatalog } from './productCatalog'
@@ -1818,14 +1819,6 @@ function ChevronIcon({ expanded = false }) {
         <path d="m6 9 6 6 6-6" />
       </g>
     </svg>
-  )
-}
-
-function BrandMark() {
-  return (
-    <div className="brand-mark" aria-label="Legasus storefront">
-      <strong>LEGASUS</strong>
-    </div>
   )
 }
 

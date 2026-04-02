@@ -132,34 +132,53 @@ body.drawer-open {
 }
 
 .drawer-tabs {
-  display: flex;
-  justify-content: space-around;
-  padding: 0 1rem 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  margin: 0 0 1rem;
+  padding: 0 0.9rem;
+  background: #fff;
+  border-top: 1px solid rgba(20, 31, 54, 0.05);
   border-bottom: 1px solid rgba(20, 31, 54, 0.08);
+  box-shadow: 0 6px 16px rgba(20, 31, 54, 0.06);
 }
 
 .drawer-tabs button {
   position: relative;
-  padding: 0.8rem 0.6rem;
-  color: #6a7486;
+  min-height: 4.2rem;
+  padding: 0.95rem 0.5rem 0.9rem;
+  color: #8a8080;
   font-family: var(--font-display);
-  font-size: 1.6rem;
-  letter-spacing: 0.04em;
+  font-size: clamp(1.1rem, 1.9vw, 1.7rem);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: center;
   text-transform: uppercase;
+  transition: color 180ms ease;
+}
+
+.drawer-tabs button::after {
+  content: '';
+  position: absolute;
+  right: 18%;
+  bottom: 0;
+  left: 18%;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: transparent;
+  transition: background-color 180ms ease;
+}
+
+.drawer-tabs button:hover {
+  color: #4d555f;
 }
 
 .drawer-tabs button.is-active {
   color: #0f9198;
+  font-weight: 700;
 }
 
 .drawer-tabs button.is-active::after {
-  content: '';
-  position: absolute;
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: 0;
-  height: 3px;
-  border-radius: 999px;
   background: #0f9198;
 }
 
@@ -428,22 +447,48 @@ body.drawer-open {
 .brand-mark {
   display: inline-flex;
   align-items: center;
+  gap: 0.55rem;
   justify-self: center;
   color: var(--accent);
   min-width: auto;
   justify-content: center;
   text-align: center;
   font-family: var(--font-display);
+  background: transparent;
+}
+
+.brand-mark__media {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.45rem, 4.2vw, 3.35rem);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.brand-mark__media > .brand-mark__source {
+  display: none;
+}
+
+.brand-mark__media > .brand-mark__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
 }
 
 .brand-mark strong {
   display: block;
-  width: 100%;
+  width: auto;
   color: currentColor;
   font-size: 3rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
+  background: transparent;
 }
 
 
@@ -5455,6 +5500,11 @@ rl
   .site-header__mobile .brand-mark {
     min-width: 0;
     color: #ef1218;
+    gap: 0.38rem;
+  }
+
+  .site-header__mobile .brand-mark__media {
+    width: 2rem;
   }
 
   .site-header__mobile .brand-mark strong {
@@ -5472,12 +5522,13 @@ rl
   }
 
   .main-nav--mobile button {
-    min-height: 2.18rem;
-    padding: 0.44rem 0.12rem 0.34rem;
+    min-height: 2.5rem;
+    padding: 0.56rem 0.22rem 0.42rem;
     color: #1f2a3f;
-    font-size: 0.74rem;
-    font-weight: 500;
-    letter-spacing: 0.015em;
+    font-size: 0.84rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
     text-align: center;
   }
 
@@ -6147,6 +6198,10 @@ rl
 }
 
 @media (max-width: 520px) {
+  .site-header__mobile .brand-mark__media {
+    width: 1.78rem;
+  }
+
   .site-header__mobile .brand-mark strong {
     font-size: 1rem;
   }
@@ -6164,8 +6219,8 @@ rl
   }
 
   .main-nav--mobile button {
-    min-height: 2.08rem;
-    font-size: 0.7rem;
+    min-height: 2.36rem;
+    font-size: 0.8rem;
   }
 
   .mobile-search-panel {
