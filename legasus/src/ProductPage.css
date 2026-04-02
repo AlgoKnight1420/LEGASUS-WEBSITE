@@ -1391,8 +1391,8 @@
   }
 
   .pdp-nav--mobile button {
-    min-height: 2.5rem;
-    padding: 0.56rem 0.22rem 0.42rem;
+    min-height: 2.34rem;
+    padding: 0.48rem 0.2rem 0.36rem;
     color: #1f2a3f;
     font-size: 0.84rem;
     font-weight: 600;
@@ -1505,13 +1505,13 @@
   }
 
   .pdp-header-mobile__bar {
-    min-height: 2.46rem;
+    min-height: 2.3rem;
     padding-left: 0.26rem;
     padding-right: 0.26rem;
   }
 
   .pdp-nav--mobile button {
-    min-height: 2.36rem;
+    min-height: 2.24rem;
     font-size: 0.8rem;
   }
 
