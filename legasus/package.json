@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:all": ".\\scripts\\dev-all.cmd",
+    "dev": "node ./scripts/dev-all.mjs",
+    "dev:all": "node ./scripts/dev-all.mjs",
+    "dev:frontend": "vite",
     "server": "npm --prefix backend run start",
     "server:dev": "npm --prefix backend run dev",
     "build": "vite build",

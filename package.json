@@ -4,6 +4,9 @@
   "scripts": {
     "build": "cd legasus && npm run build",
     "dev": "cd legasus && npm run dev",
+    "dev:all": "cd legasus && npm run dev:all",
+    "dev:frontend": "cd legasus && npm run dev:frontend",
     "install:app": "cd legasus && npm install"
   }
 }
+  
