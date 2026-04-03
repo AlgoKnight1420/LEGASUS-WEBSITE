@@ -365,27 +365,6 @@ const departmentCategories = {
   ],
 }
 
-const mobileHeroCopyByDepartment = {
-  men: {
-    leftTop: 'Shirts',
-    leftBottom: 'That Never',
-    rightTop: 'Go Out',
-    rightBottom: 'Of Style',
-  },
-  women: {
-    leftTop: 'Styles',
-    leftBottom: 'That Glow',
-    rightTop: 'Made To',
-    rightBottom: 'Stand Out',
-  },
-  sneakers: {
-    leftTop: 'Pairs',
-    leftBottom: 'Built For',
-    rightTop: 'Move In',
-    rightBottom: 'Street Style',
-  },
-}
-
 const footerPaymentPartners = ['PhonePe', 'GPay', 'Amazon Pay', 'Mastercard', 'MobiKwik', 'Paytm', 'UPI']
 const footerShippingPartners = ['DTDC', 'Delhivery', 'Ecom Express', 'Xpressbees']
 
@@ -978,6 +957,10 @@ const initialAdminProductForm = {
 
 const MAX_ADMIN_PRODUCT_IMAGES = 6
 const MAX_HOME_BANNERS = 5
+const MAX_WORKBOOK_CELL_TEXT_LENGTH = 32767
+const MAX_STORED_IMAGE_DATA_URL_LENGTH = 30000
+const HOME_BANNER_MAX_WIDTH = 1400
+const HOME_BANNER_MAX_HEIGHT = 700
 const DEFAULT_APPAREL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 const DEFAULT_EXTENDED_APPAREL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']
 const DEFAULT_BOTTOM_SIZES = ['30', '32', '34', '36', '38']
@@ -1075,6 +1058,69 @@ const readFileAsDataUrl = (file) =>
     reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`))
     reader.readAsDataURL(file)
   })
+
+const loadImageFromDataUrl = (dataUrl) =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Selected image could not be processed.'))
+    image.src = dataUrl
+  })
+
+const exportCanvasAsDataUrl = (canvas, mimeType, quality) => {
+  try {
+    return canvas.toDataURL(mimeType, quality)
+  } catch {
+    return ''
+  }
+}
+
+const createWorkbookSafeImageDataUrl = async (
+  file,
+  { maxLength = MAX_STORED_IMAGE_DATA_URL_LENGTH, maxWidth = HOME_BANNER_MAX_WIDTH, maxHeight = HOME_BANNER_MAX_HEIGHT } = {},
+) => {
+  const initialDataUrl = await readFileAsDataUrl(file)
+
+  if (initialDataUrl.length <= maxLength) return initialDataUrl
+
+  const image = await loadImageFromDataUrl(initialDataUrl)
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+
+  if (!context) return ''
+
+  const fitScale = Math.min(1, maxWidth / Math.max(image.naturalWidth, 1), maxHeight / Math.max(image.naturalHeight, 1))
+  const baseWidth = Math.max(1, Math.round(image.naturalWidth * fitScale))
+  const baseHeight = Math.max(1, Math.round(image.naturalHeight * fitScale))
+  let shortestCandidate = ''
+
+  for (const resizeScale of [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]) {
+    canvas.width = Math.max(1, Math.round(baseWidth * resizeScale))
+    canvas.height = Math.max(1, Math.round(baseHeight * resizeScale))
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+    for (const mimeType of ['image/webp', 'image/jpeg']) {
+      for (const quality of [0.84, 0.74, 0.64, 0.54, 0.44, 0.34, 0.24]) {
+        const candidate = exportCanvasAsDataUrl(canvas, mimeType, quality)
+
+        if (!candidate) continue
+        if (mimeType === 'image/webp' && !candidate.startsWith('data:image/webp')) continue
+
+        if (!shortestCandidate || candidate.length < shortestCandidate.length) {
+          shortestCandidate = candidate
+        }
+
+        if (candidate.length <= maxLength) {
+          return candidate
+        }
+      }
+    }
+  }
+
+  return shortestCandidate.length <= MAX_WORKBOOK_CELL_TEXT_LENGTH ? shortestCandidate : ''
+}
 
 const seedAdminProducts = productCatalog.map((product, index) => {
   const quantities = [42, 16, 0, 21, 8, 14, 5, 30]
@@ -1525,6 +1571,8 @@ const buildHeroSlidesForDepartment = (department, banners) => {
     ...defaultSlides[index % defaultSlides.length],
     id: banner.id,
     image: banner.image,
+    alt: `${formatLabel(department)} home banner ${index + 1}`,
+    isCustom: true,
   }))
 }
 
@@ -2174,53 +2222,30 @@ function CollectionPage({ collection, products, searchQuery, onBack, onSelectPro
   )
 }
 
-function MobileHomeShowcase({ activeDepartment, activeSlide, heroSlides, activeHero, onHeroChange, categories, onApplySelection }) {
-  const copy = mobileHeroCopyByDepartment[activeDepartment] ?? mobileHeroCopyByDepartment.men
-  const showcaseCategories = categories.slice(0, 6)
+function MobileHomeShowcase({ activeDepartment, activeSlide, heroSlides, activeHero, onHeroChange, onApplySelection }) {
+  const bannerAlt = activeSlide.alt ?? activeSlide.cta ?? `${formatLabel(activeDepartment)} home banner ${activeHero + 1}`
+  const isInteractiveBanner = Boolean(!activeSlide?.isCustom && activeSlide?.focusFilter)
+  const BannerTag = isInteractiveBanner ? 'button' : 'div'
+  const bannerProps = isInteractiveBanner
+    ? {
+        type: 'button',
+        onClick: () => onApplySelection({ filter: activeSlide.focusFilter, label: activeSlide.cta, target: 'trending' }),
+      }
+    : {}
 
   return (
-    <section className="mobile-home-hero" aria-label="Featured mobile showcase">
-      <div className="mobile-home-hero__top">
-        <div className="mobile-home-hero__copy mobile-home-hero__copy--left">
-          <span>{copy.leftTop}</span>
-          <span>{copy.leftBottom}</span>
+    <section className="mobile-home-hero" aria-label="Featured home banner">
+      <BannerTag className={`mobile-home-hero__lead${isInteractiveBanner ? ' is-interactive' : ''}`} {...bannerProps}>
+        <img src={activeSlide.image} alt={bannerAlt} />
+      </BannerTag>
+
+      {heroSlides.length > 1 ? (
+        <div className="mobile-home-hero__dots">
+          {heroSlides.map((slide, index) => (
+            <button key={slide.id} className={index === activeHero ? 'is-active' : ''} type="button" onClick={() => onHeroChange(index)} />
+          ))}
         </div>
-
-        <button
-          className="mobile-home-hero__lead"
-          type="button"
-          onClick={() => onApplySelection({ filter: activeSlide.focusFilter, label: activeSlide.cta, target: 'trending' })}
-        >
-          <img src={activeSlide.image} alt={activeSlide.cta} />
-        </button>
-
-        <div className="mobile-home-hero__copy mobile-home-hero__copy--right">
-          <span>{copy.rightTop}</span>
-          <span>{copy.rightBottom}</span>
-        </div>
-      </div>
-
-      <div className="mobile-home-hero__mini-grid">
-        {showcaseCategories.map((category) => (
-          <button key={category.id} className="mobile-home-hero__mini-card" type="button" onClick={() => onApplySelection({ ...category, source: 'home-grid' })}>
-            <img src={category.image} alt={category.label} />
-          </button>
-        ))}
-      </div>
-
-      <button
-        className="mobile-home-hero__cta"
-        type="button"
-        onClick={() => onApplySelection({ filter: activeSlide.focusFilter, label: activeSlide.cta, target: 'trending' })}
-      >
-        Explore The Collection
-      </button>
-
-      <div className="mobile-home-hero__dots">
-        {heroSlides.map((slide, index) => (
-          <button key={slide.id} className={index === activeHero ? 'is-active' : ''} type="button" onClick={() => onHeroChange(index)} />
-        ))}
-      </div>
+      ) : null}
 
       <div className="mobile-home-hero__benefits">
         <span>
@@ -4537,6 +4562,7 @@ function App() {
 
   const heroSlides = buildHeroSlidesForDepartment(activeDepartment, adminHomeBanners)
   const activeSlide = heroSlides[activeHero]
+  const isCustomHeroBanner = Boolean(activeSlide?.isCustom)
   const featuredPages = chunkItems(drawerCatalog[activeDepartment].featured, 5)
   const visibleFeaturedPage = featuredPages[drawerPage] ?? featuredPages[0] ?? []
   const searchValue = searchQuery.trim().toLowerCase()
@@ -5500,10 +5526,20 @@ function App() {
       return
     }
 
-    const uploadedImages = (await Promise.all(imageFiles.map((file) => readFileAsDataUrl(file).catch(() => '')))).filter(Boolean)
+    const uploadedImages = (
+      await Promise.all(
+        imageFiles.map((file) =>
+          createWorkbookSafeImageDataUrl(file, {
+            maxWidth: HOME_BANNER_MAX_WIDTH,
+            maxHeight: HOME_BANNER_MAX_HEIGHT,
+          }).catch(() => ''),
+        ),
+      )
+    ).filter(Boolean)
+    const skippedLargeImages = imageFiles.length - uploadedImages.length
 
     if (!uploadedImages.length) {
-      setBannerFormMessage('Banner images could not be uploaded. Please try again.')
+      setBannerFormMessage('Banner image is too large to save. Please upload a smaller JPG or WEBP file.')
       return
     }
 
@@ -5522,8 +5558,8 @@ function App() {
     await syncDepartmentHomeBanners(
       department,
       nextDepartmentBanners,
-      files.length > remainingSlots
-        ? `Only ${MAX_HOME_BANNERS} banners can be uploaded for ${formatLabel(department)}.`
+      files.length > remainingSlots || skippedLargeImages
+        ? `${formatLabel(department)} home banners updated with some files skipped because only ${MAX_HOME_BANNERS} banners are allowed or some images were too large to save.`
         : `${formatLabel(department)} home banners updated successfully.`,
     )
   }
@@ -7044,30 +7080,40 @@ function App() {
         {activeView === 'home' ? (
           <>
             <section className="hero hero--desktop" id="hero">
-              <div className="hero__carousel">
-                <button className="hero__arrow hero__arrow--left" type="button" onClick={() => setActiveHero((current) => (current - 1 + heroSlides.length) % heroSlides.length)}>
-                  <ArrowIcon direction="left" />
-                </button>
-                <div className="hero__visual"><img src={activeSlide.image} alt={activeSlide.cta} /></div>
-                <div className={`hero__content hero__content--${activeSlide.tone}`}>
-                  <p>{activeSlide.eyebrow}</p>
-                  <div className="hero__title-wrap">
-                    <span className="hero__script">{activeSlide.script}</span>
-                    <h1><span>{activeSlide.titleTop}</span><span>{activeSlide.titleBottom}</span></h1>
-                  </div>
-                  <strong>{activeSlide.cta}</strong>
-                  <p className="hero__note">{activeSlide.note}</p>
-                  <button className="cta-button" type="button" onClick={() => setActiveFilter(activeSlide.focusFilter)}>Shop now</button>
+              <div className={`hero__carousel${isCustomHeroBanner ? ' hero__carousel--image-only' : ''}`}>
+                {heroSlides.length > 1 ? (
+                  <button className="hero__arrow hero__arrow--left" type="button" onClick={() => setActiveHero((current) => (current - 1 + heroSlides.length) % heroSlides.length)}>
+                    <ArrowIcon direction="left" />
+                  </button>
+                ) : null}
+                <div className={`hero__visual${isCustomHeroBanner ? ' hero__visual--banner' : ''}`}>
+                  <img src={activeSlide.image} alt={activeSlide.alt ?? activeSlide.cta ?? `${formatLabel(activeDepartment)} home banner ${activeHero + 1}`} />
                 </div>
-                <button className="hero__arrow hero__arrow--right" type="button" onClick={() => setActiveHero((current) => (current + 1) % heroSlides.length)}>
-                  <ArrowIcon />
-                </button>
+                {isCustomHeroBanner ? null : (
+                  <div className={`hero__content hero__content--${activeSlide.tone}`}>
+                    <p>{activeSlide.eyebrow}</p>
+                    <div className="hero__title-wrap">
+                      <span className="hero__script">{activeSlide.script}</span>
+                      <h1><span>{activeSlide.titleTop}</span><span>{activeSlide.titleBottom}</span></h1>
+                    </div>
+                    <strong>{activeSlide.cta}</strong>
+                    <p className="hero__note">{activeSlide.note}</p>
+                    <button className="cta-button" type="button" onClick={() => setActiveFilter(activeSlide.focusFilter)}>Shop now</button>
+                  </div>
+                )}
+                {heroSlides.length > 1 ? (
+                  <button className="hero__arrow hero__arrow--right" type="button" onClick={() => setActiveHero((current) => (current + 1) % heroSlides.length)}>
+                    <ArrowIcon />
+                  </button>
+                ) : null}
               </div>
-              <div className="hero__dots">
-                {heroSlides.map((slide, index) => (
-                  <button key={slide.id} className={index === activeHero ? 'is-active' : ''} type="button" onClick={() => setActiveHero(index)} />
-                ))}
-              </div>
+              {heroSlides.length > 1 ? (
+                <div className="hero__dots">
+                  {heroSlides.map((slide, index) => (
+                    <button key={slide.id} className={index === activeHero ? 'is-active' : ''} type="button" onClick={() => setActiveHero(index)} />
+                  ))}
+                </div>
+              ) : null}
             </section>
 
             <MobileHomeShowcase
@@ -7076,7 +7122,6 @@ function App() {
               heroSlides={heroSlides}
               activeHero={activeHero}
               onHeroChange={setActiveHero}
-              categories={visibleCategories}
               onApplySelection={applySelection}
             />
 

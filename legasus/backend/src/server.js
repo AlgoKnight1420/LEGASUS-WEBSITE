@@ -47,6 +47,7 @@ import {
 
 const app = express()
 const port = Number(process.env.PORT ?? 4000)
+const MAX_WORKBOOK_CELL_TEXT_LENGTH = 32767
 const currentFilePath = fileURLToPath(import.meta.url)
 const backendDirectory = path.resolve(path.dirname(currentFilePath), '..')
 const distDirectory = path.resolve(backendDirectory, '..', 'dist')
@@ -335,6 +336,10 @@ app.put('/api/admin/banners/:department', async (request, response) => {
 
     if (banners.some((banner) => !String(banner?.image ?? '').trim())) {
       return sendError(response, 'Each banner must include an image.')
+    }
+
+    if (banners.some((banner) => String(banner?.image ?? '').length > MAX_WORKBOOK_CELL_TEXT_LENGTH)) {
+      return sendError(response, 'One or more banner images are too large to save. Please upload a smaller JPG or WEBP file.')
     }
 
     const nextBanners = await replaceDepartmentBanners(request.params.department, banners)

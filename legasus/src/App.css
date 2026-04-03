@@ -626,6 +626,17 @@ body.drawer-open {
   display: none;
 }
 
+.mobile-home-hero__frame {
+  overflow: hidden;
+  background: #f0f0ef;
+}
+
+.mobile-home-hero__frame img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 .hero__carousel {
   position: relative;
   display: grid;
@@ -633,8 +644,17 @@ body.drawer-open {
   min-height: clamp(26rem, 65vw, 40rem);
 }
 
+.hero__carousel--image-only {
+  display: block;
+  min-height: 0;
+}
+
 .hero__visual {
   min-height: 100%;
+}
+
+.hero__visual--banner {
+  width: 100%;
 }
 
 .hero__visual img,
@@ -644,6 +664,11 @@ body.drawer-open {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.hero__visual--banner img {
+  height: auto;
+  object-fit: contain;
 }
 
 .hero__content {
@@ -5585,8 +5610,13 @@ rl
 
   .mobile-home-hero {
     display: block;
-    padding: 0.42rem 0.42rem 0.68rem;
-    background: #fff;
+    padding: 0 0 0.6rem;
+    background: transparent;
+  }
+
+  .mobile-home-hero--image-only {
+    padding: 0;
+    background: transparent;
   }
 
   .mobile-home-hero__top {
@@ -5623,17 +5653,22 @@ rl
     border: 0;
     background: transparent;
     padding: 0;
-    cursor: pointer;
   }
 
   .mobile-home-hero__lead {
+    display: block;
+    width: 100%;
     overflow: hidden;
     background: #f0f0ef;
   }
 
+  .mobile-home-hero__lead.is-interactive {
+    cursor: pointer;
+  }
+
   .mobile-home-hero__lead img {
     width: 100%;
-    aspect-ratio: 0.64;
+    aspect-ratio: 0.67;
     object-fit: cover;
     display: block;
   }
@@ -5674,7 +5709,7 @@ rl
     display: flex;
     justify-content: center;
     gap: 0.42rem;
-    padding-top: 0.34rem;
+    padding-top: 0.42rem;
   }
  /* fix navbar mobile center logo and alignment */
 
@@ -5696,7 +5731,7 @@ rl
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.35rem;
-    margin-top: 0.5rem;
+    margin-top: 0.42rem;
     padding: 0.32rem 0.18rem;
     background: #e8f5f4;
   }
@@ -5727,7 +5762,7 @@ rl
   }
 
   .section-block--tight {
-    padding-top: 0.78rem;
+    padding-top: 0.36rem;
   }
 
   .section-heading {
